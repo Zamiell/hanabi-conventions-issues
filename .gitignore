@@ -1,3 +1,21 @@
+# -------------------------------
+# hanabi-conventions-issues stuff
+# -------------------------------
+
+# Contains secrets
+.env
+key.pem
+
+# Log files
+logs/*.log*
+
+# MacOS artifacts
+.DS_Store
+
+# --------------------------
+# GitHub .gitignore Template
+# --------------------------
+
 # Binaries for programs and plugins
 *.exe
 *.exe~

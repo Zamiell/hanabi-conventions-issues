@@ -13,6 +13,7 @@ import (
 	"github.com/google/go-github/github"
 	"github.com/joho/godotenv"
 	logging "github.com/op/go-logging"
+	"github.com/rjz/githubhook"
 )
 
 const (
@@ -21,9 +22,10 @@ const (
 )
 
 var (
-	projectPath = path.Join(os.Getenv("GOPATH"), "src", "github.com", "Zamiell", "hanabi-conventions-issues")
-	log         *logging.Logger
-	GHClient    *github.Client
+	projectPath   = path.Join(os.Getenv("GOPATH"), "src", "github.com", "Zamiell", "hanabi-conventions-issues")
+	log           *logging.Logger
+	webhookSecret string
+	GHClient      *github.Client
 )
 
 func main() {
@@ -56,7 +58,7 @@ func main() {
 	}
 
 	// Read some configuration values from environment variables
-	webhookSecret := os.Getenv("WEBHOOK_SECRET")
+	webhookSecret = os.Getenv("WEBHOOK_SECRET")
 	if len(webhookSecret) == 0 {
 		log.Fatal("The \"WEBHOOK_SECRET\" environment variable is blank; set one in your \".env\" file.")
 		return
@@ -107,10 +109,19 @@ func httpPost(c *gin.Context) {
 		}
 	*/
 
+	// Use the githubhook library to verify that this message was sent from GitHub
+	// (with the configured webhook secret)
+	var hook *githubhook.Hook
+	if v, err := githubhook.Parse([]byte(webhookSecret), r); err != nil {
+		log.Error("Failed to validate the webhook secret:", err)
+		return
+	} else {
+		hook = v
+	}
+
 	// Data comes to us from the GitHub hook in the form of a JSON POST, so we first decode it
-	var event *github.IssueCommentEvent
-	decoder := json.NewDecoder(r.Body)
-	if err := decoder.Decode(&event); err != nil {
+	event := github.IssueCommentEvent{}
+	if err := json.Unmarshal(hook.Payload, &event); err != nil {
 		log.Error("Failed to unmarshal the JSON POST:", err)
 		return
 	}
@@ -121,16 +132,28 @@ func httpPost(c *gin.Context) {
 	}
 
 	// Look for commands
-	msg := "* Some time has passed since this issue was opened and the group appears to have reached a consensus.\n"
-	if strings.Contains(*event.Comment.Body, "/deny") {
-		msg += "* ❌ This change will **not** be integrated into the official document.\n"
+	msg := ""
+	if strings.Contains(*event.Comment.Body, "/deny") ||
+		strings.Contains(*event.Comment.Body, "/reject") {
+
+		msg += "* Some time has passed since this issue was opened and the group appears to have reached a consensus.\n"
+		msg += "* ❌ This change will **not** be integrated into the official reference document.\n"
+
 	} else if strings.Contains(*event.Comment.Body, "/accept") {
-		msg += "* ✔️ This change will be integrated into the official document.\n"
+		msg += "* Some time has passed since this issue was opened and the group appears to have reached a consensus.\n"
+		msg += "* ✔️ This change will be integrated into the official reference document.\n"
+
+	} else if strings.Contains(*event.Comment.Body, "/stale") ||
+		strings.Contains(*event.Comment.Body, "/idle") ||
+		strings.Contains(*event.Comment.Body, "/zzz") {
+
+		msg += "* Some time has passed since this issue was opened and the discussion appears to have died down.\n"
+		msg += "* 💤 Either the document has already been updated or no additional changes need to be made.\n"
 	} else {
 		return
 	}
 
-	msg += "* This issue will now be closed; feel free to continue to comment on the issue if you feel that the discussion was ended prematurely.\n"
+	msg += "* This issue will now be closed. If you feel this was an error, feel free to continue the discussion and a moderator will re-open the issue.\n"
 	msg += "\n(For more information on how consensus is determined, please read the [Convention Changes document](https://github.com/Zamiell/hanabi-conventions/blob/master/misc/Convention_Changes.md).)"
 
 	// Submit the comment

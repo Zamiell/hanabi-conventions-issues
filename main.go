@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	"github.com/bradleyfalzon/ghinstallation"
+	"github.com/didip/tollbooth"
+	"github.com/didip/tollbooth_gin"
 	"github.com/gin-gonic/gin"
 	"github.com/google/go-github/github"
 	"github.com/joho/godotenv"
@@ -80,10 +82,15 @@ func main() {
 	GHClient = github.NewClient(&http.Client{Transport: itr})
 
 	// Create a new Gin HTTP router
-	// gin.SetMode(gin.ReleaseMode) // Comment this out to debug HTTP stuff
-	httpRouter := gin.New()
-	httpRouter.Use(gin.Recovery())
-	httpRouter.Use(gin.Logger()) // Uncomment this to enable HTTP request logging
+	httpRouter := gin.Default() // Has the "Logger" and "Recovery" middleware attached
+
+	// Attach rate-limiting middleware from Tollbooth
+	limiter := tollbooth.NewLimiter(1, nil) // Limit each user to 1 requests per second
+	limiter.SetMessage(http.StatusText(http.StatusTooManyRequests))
+	limiterMiddleware := tollbooth_gin.LimitHandler(limiter)
+	httpRouter.Use(limiterMiddleware)
+
+	// Attach path handlers
 	httpRouter.POST("/", httpPost)
 
 	// Listen and serve (HTTP)

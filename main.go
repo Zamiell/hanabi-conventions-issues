@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/bradleyfalzon/ghinstallation"
@@ -19,14 +21,9 @@ import (
 	"github.com/rjz/githubhook"
 )
 
-const (
-	GitHubAppID          = 46115
-	GitHubInstallationID = 5060780
-)
-
 var (
-	projectPath   = path.Join(os.Getenv("GOPATH"), "src", "github.com", "Zamiell", "hanabi-conventions-issues")
 	logger        *logging.Logger
+	projectPath   string
 	webhookSecret string
 	GHClient      *github.Client
 )
@@ -47,11 +44,12 @@ func main() {
 	logger.Info("| Starting hanabi-conventions-issues bot. |")
 	logger.Info("+-----------------------------------------+")
 
-	// Check to see if the project path exists
-	if _, err := os.Stat(projectPath); os.IsNotExist(err) {
-		log.Fatal("The project path of \"" + projectPath + "\" does not exist. " +
-			"Check to see if your GOPATH environment variable is set properly.")
-		return
+	// Get the project path
+	// https://stackoverflow.com/questions/18537257/
+	if v, err := os.Executable(); err != nil {
+		logger.Fatal("Failed to get the path of the currently running executable:", err)
+	} else {
+		projectPath = filepath.Dir(v)
 	}
 
 	// Load the ".env" file which contains environment variables with secret values
@@ -61,6 +59,30 @@ func main() {
 	}
 
 	// Read some configuration values from environment variables
+	GitHubAppIDString := os.Getenv("GITHUB_APP_ID")
+	if len(GitHubAppIDString) == 0 {
+		log.Fatal("The \"GITHUB_APP_ID\" environment variable is blank; set one in your \".env\" file.")
+		return
+	}
+	var GitHubAppID int64
+	if v, err := strconv.ParseInt(GitHubAppIDString, 10, 64); err != nil {
+		log.Fatal("The  \"GITHUB_APP_ID\" environment variable of \"" + GitHubAppIDString + "\" is not a number.")
+		return
+	} else {
+		GitHubAppID = v
+	}
+	GitHubInstallationIDString := os.Getenv("GITHUB_INSTALLATION_ID")
+	if len(GitHubInstallationIDString) == 0 {
+		log.Fatal("The \"GITHUB_INSTALLATION_ID\" environment variable is blank; set one in your \".env\" file.")
+		return
+	}
+	var GitHubInstallationID int64
+	if v, err := strconv.ParseInt(GitHubInstallationIDString, 10, 64); err != nil {
+		log.Fatal("The  \"GITHUB_INSTALLATION_ID\" environment variable of \"" + GitHubInstallationIDString + "\" is not a number.")
+		return
+	} else {
+		GitHubInstallationID = v
+	}
 	webhookSecret = os.Getenv("WEBHOOK_SECRET")
 	if len(webhookSecret) == 0 {
 		log.Fatal("The \"WEBHOOK_SECRET\" environment variable is blank; set one in your \".env\" file.")

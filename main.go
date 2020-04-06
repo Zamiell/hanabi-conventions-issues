@@ -91,6 +91,9 @@ func main() {
 
 	// Wrap the shared transport for use with our GitHub app
 	// https://github.com/bradleyfalzon/ghinstallation
+	// We generate a "key.pem" file with the following steps:
+	// 1) https://github.com/settings/apps/conventions-bot
+	// 2) "Generate a private key" (near the bottom of the page)
 	keyPath := path.Join(projectPath, "key.pem")
 	var itr *ghinstallation.Transport
 	if v, err := ghinstallation.NewKeyFromFile(http.DefaultTransport, GitHubAppID, GitHubInstallationID, keyPath); err != nil {

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"os"
 	"path"
@@ -23,7 +24,7 @@ const (
 
 var (
 	projectPath   = path.Join(os.Getenv("GOPATH"), "src", "github.com", "Zamiell", "hanabi-conventions-issues")
-	log           *logging.Logger
+	logger        *logging.Logger
 	webhookSecret string
 	GHClient      *github.Client
 )
@@ -31,7 +32,7 @@ var (
 func main() {
 	// Initialize logging
 	// http://godoc.org/github.com/op/go-logging#Formatter
-	log = logging.MustGetLogger("hanabi-conventions-issues")
+	logger = logging.MustGetLogger("hanabi-conventions-issues")
 	loggingBackend := logging.NewLogBackend(os.Stdout, "", 0)
 	logFormat := logging.MustStringFormatter( // https://golang.org/pkg/time/#Time.Format
 		`%{time:Mon Jan 02 15:04:05 MST 2006} - %{level:.4s} - %{shortfile} - %{message}`,
@@ -40,9 +41,9 @@ func main() {
 	logging.SetBackend(loggingBackendFormatted)
 
 	// Welcome message
-	log.Info("+-----------------------------------------+")
-	log.Info("| Starting hanabi-conventions-issues bot. |")
-	log.Info("+-----------------------------------------+")
+	logger.Info("+-----------------------------------------+")
+	logger.Info("| Starting hanabi-conventions-issues bot. |")
+	logger.Info("+-----------------------------------------+")
 
 	// Check to see if the project path exists
 	if _, err := os.Stat(projectPath); os.IsNotExist(err) {
@@ -90,10 +91,10 @@ func main() {
 		":8080", // Nothing before the colon implies 0.0.0.0
 		httpRouter,
 	); err != nil {
-		log.Fatal("http.ListenAndServe failed:", err)
+		logger.Fatal("http.ListenAndServe failed:", err)
 		return
 	}
-	log.Fatal("http.ListenAndServe ended prematurely.")
+	logger.Fatal("http.ListenAndServe ended prematurely.")
 }
 
 func httpPost(c *gin.Context) {
@@ -113,7 +114,7 @@ func httpPost(c *gin.Context) {
 	// (with the configured webhook secret)
 	var hook *githubhook.Hook
 	if v, err := githubhook.Parse([]byte(webhookSecret), r); err != nil {
-		log.Error("Failed to validate the webhook secret:", err)
+		logger.Error("Failed to validate the webhook secret:", err)
 		return
 	} else {
 		hook = v
@@ -122,7 +123,7 @@ func httpPost(c *gin.Context) {
 	// Data comes to us from the GitHub hook in the form of a JSON POST, so we first decode it
 	event := github.IssueCommentEvent{}
 	if err := json.Unmarshal(hook.Payload, &event); err != nil {
-		log.Error("Failed to unmarshal the JSON POST:", err)
+		logger.Error("Failed to unmarshal the JSON POST:", err)
 		return
 	}
 
@@ -166,7 +167,7 @@ func httpPost(c *gin.Context) {
 			Body: &msg,
 		},
 	); err != nil {
-		log.Error("Failed to create a comment:", err)
+		logger.Error("Failed to create a comment:", err)
 	}
 
 	// Close the issue
@@ -180,6 +181,6 @@ func httpPost(c *gin.Context) {
 			State: &closed,
 		},
 	); err != nil {
-		log.Error("Failed to close the issue:", err)
+		logger.Error("Failed to close the issue:", err)
 	}
 }

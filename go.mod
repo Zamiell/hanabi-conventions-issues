@@ -8,4 +8,5 @@ require (
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/joho/godotenv v1.3.0
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
+	github.com/rjz/githubhook v0.0.1
 )

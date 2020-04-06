@@ -2,6 +2,9 @@
 # hanabi-conventions-issues stuff
 # -------------------------------
 
+# Binary
+hanabi-conventions-issues
+
 # Contains secrets
 .env
 key.pem

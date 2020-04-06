@@ -104,6 +104,7 @@ func main() {
 	GHClient = github.NewClient(&http.Client{Transport: itr})
 
 	// Create a new Gin HTTP router
+	gin.SetMode(gin.ReleaseMode)
 	httpRouter := gin.Default() // Has the "Logger" and "Recovery" middleware attached
 
 	// Attach rate-limiting middleware from Tollbooth

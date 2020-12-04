@@ -22,10 +22,10 @@ import (
 )
 
 var (
-	logger        *logging.Logger
-	projectPath   string
-	webhookSecret string
-	GHClient      *github.Client
+	logger              *logging.Logger
+	projectPath         string
+	gitHubWebhookSecret string
+	ghClient            *github.Client
 )
 
 func main() {
@@ -59,52 +59,57 @@ func main() {
 	}
 
 	// Read some configuration values from environment variables
-	GitHubAppIDString := os.Getenv("GITHUB_APP_ID")
-	if len(GitHubAppIDString) == 0 {
+	gitHubAppIDString := os.Getenv("GITHUB_APP_ID")
+	if len(gitHubAppIDString) == 0 {
 		log.Fatal("The \"GITHUB_APP_ID\" environment variable is blank; set one in your \".env\" file.")
 		return
 	}
-	var GitHubAppID int64
-	if v, err := strconv.ParseInt(GitHubAppIDString, 10, 64); err != nil {
-		log.Fatal("The  \"GITHUB_APP_ID\" environment variable of \"" + GitHubAppIDString + "\" is not a number.")
+	var gitHubAppID int64
+	if v, err := strconv.ParseInt(gitHubAppIDString, 10, 64); err != nil {
+		log.Fatal("The  \"GITHUB_APP_ID\" environment variable of \"" + gitHubAppIDString + "\" is not a number.")
 		return
 	} else {
-		GitHubAppID = v
+		gitHubAppID = v
 	}
-	GitHubInstallationIDString := os.Getenv("GITHUB_INSTALLATION_ID")
-	if len(GitHubInstallationIDString) == 0 {
+	gitHubInstallationIDString := os.Getenv("GITHUB_INSTALLATION_ID")
+	if len(gitHubInstallationIDString) == 0 {
 		log.Fatal("The \"GITHUB_INSTALLATION_ID\" environment variable is blank; set one in your \".env\" file.")
 		return
 	}
-	var GitHubInstallationID int64
-	if v, err := strconv.ParseInt(GitHubInstallationIDString, 10, 64); err != nil {
-		log.Fatal("The  \"GITHUB_INSTALLATION_ID\" environment variable of \"" + GitHubInstallationIDString + "\" is not a number.")
+	var gitHubInstallationID int64
+	if v, err := strconv.ParseInt(gitHubInstallationIDString, 10, 64); err != nil {
+		log.Fatal("The  \"GITHUB_INSTALLATION_ID\" environment variable of \"" + gitHubInstallationIDString + "\" is not a number.")
 		return
 	} else {
-		GitHubInstallationID = v
+		gitHubInstallationID = v
 	}
-	webhookSecret = os.Getenv("WEBHOOK_SECRET")
-	if len(webhookSecret) == 0 {
-		log.Fatal("The \"WEBHOOK_SECRET\" environment variable is blank; set one in your \".env\" file.")
+	gitHubWebhookSecret = os.Getenv("GITHUB_WEBHOOK_SECRET")
+	if len(gitHubWebhookSecret) == 0 {
+		log.Fatal("The \"GITHUB_WEBHOOK_SECRET\" environment variable is blank; set one in your \".env\" file.")
 		return
 	}
 
 	// Wrap the shared transport for use with our GitHub app
 	// https://github.com/bradleyfalzon/ghinstallation
-	// We generate a "key.pem" file with the following steps:
-	// 1) https://github.com/settings/apps/conventions-bot
-	// 2) "Generate a private key" (near the bottom of the page)
-	keyPath := path.Join(projectPath, "key.pem")
-	var itr *ghinstallation.Transport
-	if v, err := ghinstallation.NewKeyFromFile(http.DefaultTransport, GitHubAppID, GitHubInstallationID, keyPath); err != nil {
-		log.Fatal("Failed to read the private key:", err)
+	// (see the ".env" file for instructions on getting these values)
+	gitHubKeyPath := path.Join(projectPath, "GitHub_private_key.pem")
+	var transport *ghinstallation.Transport
+	if v, err := ghinstallation.NewKeyFromFile(
+		http.DefaultTransport,
+		gitHubAppID,
+		gitHubInstallationID,
+		gitHubKeyPath,
+	); err != nil {
+		log.Fatal("Failed to read the private key from \""+gitHubKeyPath+"\":", err)
 	} else {
-		itr = v
+		transport = v
 	}
 
 	// Initialize a GitHub API client
 	// https://github.com/google/go-github
-	GHClient = github.NewClient(&http.Client{Transport: itr})
+	ghClient = github.NewClient(&http.Client{
+		Transport: transport,
+	})
 
 	// Create a new Gin HTTP router
 	gin.SetMode(gin.ReleaseMode)
@@ -146,7 +151,7 @@ func httpPost(c *gin.Context) {
 	// Use the githubhook library to verify that this message was sent from GitHub
 	// (with the configured webhook secret)
 	var hook *githubhook.Hook
-	if v, err := githubhook.Parse([]byte(webhookSecret), r); err != nil {
+	if v, err := githubhook.Parse([]byte(gitHubWebhookSecret), r); err != nil {
 		logger.Error("Failed to validate the webhook secret:", err)
 		return
 	} else {
@@ -191,7 +196,7 @@ func httpPost(c *gin.Context) {
 	msg += "\n(For more information on how consensus is determined, please read the [Convention Changes document](https://github.com/Zamiell/hanabi-conventions/blob/master/misc/Convention_Changes.md).)"
 
 	// Submit the comment
-	if _, _, err := GHClient.Issues.CreateComment(
+	if _, _, err := ghClient.Issues.CreateComment(
 		context.Background(),
 		*event.Repo.Owner.Login,
 		*event.Repo.Name,
@@ -205,7 +210,7 @@ func httpPost(c *gin.Context) {
 
 	// Close the issue
 	closed := "closed"
-	if _, _, err := GHClient.Issues.Edit(
+	if _, _, err := ghClient.Issues.Edit(
 		context.Background(),
 		*event.Repo.Owner.Login,
 		*event.Repo.Name,

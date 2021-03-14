@@ -7,7 +7,7 @@ hanabi-conventions-issues
 
 # Contains secrets
 .env
-key.pem
+GitHub_private_key.pem
 
 # Log files
 logs/*.log*

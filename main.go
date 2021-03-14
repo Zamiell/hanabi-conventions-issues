@@ -193,7 +193,7 @@ func httpPost(c *gin.Context) {
 	}
 
 	msg += "* This issue will now be closed. If you feel this was an error, feel free to continue the discussion and a moderator will re-open the issue.\n"
-	msg += "\n(For more information on how consensus is determined, please read the [Convention Changes document](https://github.com/Zamiell/hanabi-conventions/blob/master/misc/Convention_Changes.md).)"
+	msg += "\n(For more information on how consensus is determined, please read the [Convention Changes document](https://github.com/hanabi/hanabi.github.io/blob/main/misc/convention-changes.md).)"
 
 	// Submit the comment
 	if _, _, err := ghClient.Issues.CreateComment(
